@@ -1,4 +1,5 @@
 using Dapper;
+using TaskManager.Api.Middleware;
 using TaskManager.Api.Repositories;
 using TaskManager.Api.Services;
 
@@ -13,6 +14,8 @@ builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
