@@ -10,9 +10,12 @@ DefaultTypeMap.MatchNamesWithUnderscores = true;
 builder.Services.AddSingleton<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 
+builder.Services.AddControllers();
+
 var app = builder.Build();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapControllers();
 
 app.Run();
 
