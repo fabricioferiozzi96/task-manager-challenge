@@ -1,8 +1,13 @@
 using Dapper;
+using DotNetEnv;
 using Serilog;
 using TaskManager.Api.Middleware;
 using TaskManager.Api.Repositories;
 using TaskManager.Api.Services;
+
+// Carga variables desde .env si existe (en dev). En producción se setean
+// directamente como variables de entorno del proceso/container.
+Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
