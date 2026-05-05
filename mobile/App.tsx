@@ -1,14 +1,20 @@
 import React from 'react';
-import { SafeAreaView, StatusBar, Text, useColorScheme } from 'react-native';
+import { StatusBar, useColorScheme } from 'react-native';
+import { Provider } from 'react-redux';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { store } from './src/core/store';
+import { RootNavigator } from './src/core/navigation/RootNavigator';
 
 const App: React.FC = () => {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <Text style={{ padding: 16, fontSize: 18 }}>Task Manager</Text>
-    </SafeAreaView>
+    <Provider store={store}>
+      <SafeAreaProvider>
+        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+        <RootNavigator />
+      </SafeAreaProvider>
+    </Provider>
   );
 };
 
