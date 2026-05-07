@@ -39,6 +39,7 @@ mobile/src/
 
 - **TypeScript 5.8** en modo strict.
 - **Redux Toolkit + RTK Query** para estado cliente y servidor en un mismo store.
+- **redux-persist + AsyncStorage** para persistir filtros y cache entre sesiones.
 - **React Navigation** con stack nativo y tipado.
 - **`fetchBaseQuery`** (parte de RTK Query) para HTTP.
 - **StyleSheet nativo** + tokens. Sin UI Kit (es restricción del reto).
@@ -122,6 +123,21 @@ Path aliases vía `babel-plugin-module-resolver` requiere mantener sincronizadas
 ### Estados explícitos
 
 Todas las pantallas con datos del servidor manejan loading / empty / error / success de forma visualmente distinta. Sin "renderizar nada en silencio mientras carga".
+
+### Persistencia y comportamiento offline
+
+`redux-persist` con `AsyncStorage` como backend persiste dos partes del store:
+
+- **`filters`**: cuando el usuario cierra y reabre la app, los filtros activos se mantienen.
+- **`tasksApi`** (cache de RTK Query): la última lista cargada y los detalles vistos quedan disponibles aunque la app se reinicie sin internet. RTK Query rehidrata el cache vía `extractRehydrationInfo`.
+
+Además, en `tasksApi` están activos `refetchOnFocus: true` y `refetchOnReconnect: true`. Cuando la app vuelve al foreground o recupera conexión, las queries activas refetchean solas.
+
+Lo que esto **no** soluciona:
+
+- No hay un banner explícito de "modo offline" (haría falta `@react-native-community/netinfo`).
+- No hay queue de mutations offline (no hay mutations en el alcance del reto).
+- No es offline-first puro: para eso haría falta una DB local (WatermelonDB / SQLite) como source of truth, con RTK Query como sync layer. Lo dejé fuera porque no es requisito del reto.
 
 ## Performance
 
