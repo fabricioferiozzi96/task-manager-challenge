@@ -25,7 +25,7 @@ DefaultTypeMap.MatchNamesWithUnderscores = true;
 // Inyección de dependencias — equivalente a "import" + "new" en Express,
 // pero el contenedor crea las instancias por nosotros.
 // ---------------------------------------------------------------
-builder.Services.AddSingleton<ITaskRepository, TaskRepository>();
+builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 
 builder.Services.AddControllers();

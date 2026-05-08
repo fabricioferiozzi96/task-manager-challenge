@@ -22,7 +22,7 @@ backend/
 
 ## Por qué layered y no Clean Architecture
 
-El reto pide 2 endpoints. Para ese alcance, partir el código en 4 proyectos (Domain / Application / Infrastructure / Api), agregar MediatR para 2 queries y modelar value objects para los enums es ceremonia que no aporta valor real.
+El reto pide 2 endpoints. Para ese alcance, partir el código en 4 proyectos (Domain / Application / Infrastructure / Api), agregar MediatR para 2 queries y modelar value objects para los enums es complejidad que no aporta valor real.
 
 Layered con Controller → Service → Repository ya separa lo importante:
 
@@ -119,4 +119,4 @@ Casos:
 ## Notas
 
 - Mapeo snake_case → PascalCase configurado con `Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true`. Hace que columnas como `status_id` mapeen a `StatusId` sin alias explícitos.
-- El repositorio está registrado como Singleton. No guarda estado: abre y cierra una `NpgsqlConnection` por llamada, y Npgsql tiene su propio pool interno. Scoped no aporta nada acá.
+- Repo y service registrados como Scoped (instancia por request). Es la convención en .NET y deja la puerta abierta a inyectar dependencias con scope más adelante sin riesgo de *captive dependency*. La conexión real la maneja Npgsql con su pool, no la vida del objeto.

@@ -33,7 +33,7 @@ mobile/src/
 - **Server-state separado de client-state**:
   - **RTK Query** maneja lo que viene del servidor (cache, dedupe, refetch, loading/error).
   - **filtersSlice** guarda los filtros activos (UI state).
-  - Esto evita el clásico antipatrón de "cachear datos del server en un slice de Redux a mano", que termina siendo bug magnet.
+  - Esto evita el clásico antipatrón de "cachear datos del server en un slice de Redux a mano", que suele traer bugs de cache desincronizado.
 
 ## Stack
 

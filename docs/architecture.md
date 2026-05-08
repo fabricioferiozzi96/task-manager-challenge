@@ -28,11 +28,11 @@ flowchart TD
 ## Composición (`Program.cs`)
 
 ```csharp
-builder.Services.AddSingleton<ITaskRepository, TaskRepository>();
+builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 ```
 
-Repo Singleton porque no guarda estado (Npgsql tiene su propio pool). Service Scoped por request.
+Repo y service Scoped (instancia por request). Es la convención en .NET y evita problemas si más adelante el repo recibe una dependencia con scope.
 
 ## Configuración
 

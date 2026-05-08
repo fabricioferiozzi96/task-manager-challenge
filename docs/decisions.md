@@ -12,7 +12,7 @@ Para errores usé un **`ExceptionMiddleware` clásico** en lugar de `IExceptionH
 
 La **validación quedó inline** en el controller. Son dos query params numéricos en rango 1..4. Meter FluentValidation con un validator y un pipeline behavior por dos `if` me pareció exagerado.
 
-Registré el **repositorio como Singleton**. No guarda estado: abre y cierra una `NpgsqlConnection` por llamada y Npgsql ya tiene su propio pool de conexiones. Scoped no aporta nada y crea una instancia nueva por request al pedo.
+Registré el **repositorio como Scoped** (instancia por request). Es la convención en .NET y el costo de crear la instancia es despreciable: la conexión real la maneja Npgsql con su pool, no la vida del objeto. Scoped además me deja inyectar otras dependencias con scope sin riesgo de *captive dependency*, cosa que con Singleton sí sería un problema.
 
 Las **credenciales vienen de un `.env`**. Uso `DotNetEnv.Env.TraversePath().Load()` al arranque para cargar el archivo en variables de entorno. .NET las lee como `IConfiguration` con la convención `Section__Key` (por ejemplo `ConnectionStrings__Default`). En producción no se usa el archivo: las variables se setean directamente en el container.
 
