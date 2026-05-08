@@ -30,7 +30,7 @@ Layered con Controller → Service → Repository ya separa lo importante:
 - **Service**: lógica de negocio y mapeo a DTO.
 - **Repository**: acceso a datos.
 
-Si el dominio creciera (varios agregados, comandos con efectos secundarios, reglas de negocio complejas), Clean Arch + CQRS pasa a tener sentido. Para este alcance no.
+Si el dominio creciera (varios agregados, comandos con efectos secundarios, reglas de negocio complejas), Clean Arch es lo optimo para proyectos grandes.
 
 ## Stack
 
