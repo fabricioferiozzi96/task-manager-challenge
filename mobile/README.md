@@ -22,7 +22,7 @@ mobile/src/
         ├── application/        filtersSlice (client-state)
         └── ui/
             ├── screens/        Containers: hooks, dispatch, navegación
-            └── views/          Vistas presentacionales puras (props → JSX)
+            └── views/          Vistas presentacionales puras (props → TSX)
 ```
 
 ## Por qué esta estructura
@@ -152,8 +152,6 @@ Tres unidades:
 - `TaskMapper.test.ts`: traducción DTO → Task.
 - `filtersSlice.test.ts`: reducers (setStatus, setPriority, clearFilters).
 - `TaskCard.test.tsx`: render + interacción con RNTL.
-
-No testeo containers (los `screens/`) porque son glue (hooks de Redux + navigation). Mockear todo eso para tests unitarios es mucha fricción para poco valor. El valor real está en la lógica pura: mapper, reducers, views.
 
 ```powershell
 npm test
