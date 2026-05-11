@@ -1,17 +1,18 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { REHYDRATE } from 'redux-persist';
-import type { Action } from '@reduxjs/toolkit';
-import { API_BASE_URL } from '../../../core/api/config';
+import type { UnknownAction } from '@reduxjs/toolkit';
 import type { Task, TaskFilters } from '../domain/Task';
 import type { TaskDto } from './TaskDto';
 import { toTask } from './TaskMapper';
+import { API_BASE_URL } from '../../../core/api/config';
 
-interface RehydrateAction extends Action<typeof REHYDRATE> {
+interface RehydrateAction extends UnknownAction {
+  type: typeof REHYDRATE;
   payload?: Record<string, unknown>;
   key: string;
 }
 
-const isRehydrate = (action: Action): action is RehydrateAction =>
+const isRehydrate = (action: UnknownAction): action is RehydrateAction =>
   action.type === REHYDRATE;
 
 /**
@@ -29,7 +30,7 @@ export const tasksApi = createApi({
   refetchOnReconnect: true,
   extractRehydrationInfo(action, { reducerPath }) {
     if (isRehydrate(action) && action.payload) {
-      return action.payload[reducerPath] as ReturnType<typeof tasksApi.reducer>;
+      return action.payload[reducerPath] as any; // circular ref impide usar ReturnType<typeof tasksApi.reducer>
     }
   },
   endpoints: (build) => ({
