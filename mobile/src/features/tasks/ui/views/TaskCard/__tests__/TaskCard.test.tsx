@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { TaskCard } from '../TaskCard';
-import type { Task } from '../../../domain/Task';
+import type { Task } from '../../../../domain/Task';
 
 const buildTask = (overrides: Partial<Task> = {}): Task => ({
   id: 1,
