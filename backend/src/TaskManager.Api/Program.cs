@@ -1,19 +1,22 @@
+using System.Reflection;
 using Dapper;
 using DotNetEnv;
+using FluentValidation;
+using MediatR;
 using Serilog;
-using TaskManager.Api.Middleware;
-using TaskManager.Api.Repositories;
-using TaskManager.Api.Services;
+using TaskManager.Api.API.Middleware;
+using TaskManager.Api.Application.Behaviors;
+using TaskManager.Api.Application.Services;
+using TaskManager.Api.Domain.Repository;
+using TaskManager.Api.Infrastructure.Repository;
+using TaskManager.Api.Infrastructure.Service;
 
-// Carga variables desde .env si existe (en dev). En producción se setean
-// directamente como variables de entorno del proceso/container.
+// Carga variables desde .env en dev. En prod se setean directamente en el container.
 Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ---------------------------------------------------------------
-// Logger (Serilog) — equivalente a morgan + winston en Express.
-// ---------------------------------------------------------------
+// Logger estructurado.
 builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
     .WriteTo.Console());
@@ -22,9 +25,22 @@ builder.Host.UseSerilog((ctx, lc) => lc
 DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 // ---------------------------------------------------------------
-// Inyección de dependencias — equivalente a "import" + "new" en Express,
-// pero el contenedor crea las instancias por nosotros.
+// Composición — el centro de Clean Arch: la API es la única capa
+// que conoce a TODOS los demás módulos, porque acá se "atan los cables"
+// entre interfaces (Application/Domain) e implementaciones (Infrastructure).
 // ---------------------------------------------------------------
+
+// MediatR — descubre todos los IRequest/IRequestHandler del assembly.
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+
+// Pipeline behavior: corre antes de cada handler para validar el request.
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+// FluentValidation — descubre todos los AbstractValidator del assembly.
+builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+// Infraestructura: implementaciones concretas detrás de cada interfaz.
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
 
@@ -39,9 +55,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ---------------------------------------------------------------
-// Pipeline (cada UseX es un app.use(...) de Express, en orden).
-// ---------------------------------------------------------------
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseSerilogRequestLogging();
 
@@ -57,5 +70,4 @@ app.MapControllers();
 
 app.Run();
 
-// Para tests de integración con WebApplicationFactory<Program>.
 public partial class Program;

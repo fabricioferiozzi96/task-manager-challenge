@@ -1,10 +1,17 @@
-using TaskManager.Api.Exceptions;
+using TaskManager.Api.Domain.Exceptions;
+using ValidationException = TaskManager.Api.Application.Exceptions.ValidationException;
 
-namespace TaskManager.Api.Middleware;
+namespace TaskManager.Api.API.Middleware;
 
 /// <summary>
-/// Middleware global de errores. Cumple el mismo rol que un
-/// <c>app.use((err, req, res, next) =&gt; ...)</c> en Express.
+/// Único lugar del sistema que traduce excepciones de dominio/app a HTTP.
+/// El resto del código lanza excepciones expresivas (NotFoundException,
+/// ValidationException) sin saber qué status code va a generar.
+///
+/// Mapeo:
+/// - ValidationException → 400 con el dict de errores por campo.
+/// - NotFoundException   → 404 con detalle.
+/// - cualquier otra       → 500 con mensaje genérico (el detalle solo al log).
 /// </summary>
 public class ExceptionMiddleware
 {
@@ -22,6 +29,19 @@ public class ExceptionMiddleware
         try
         {
             await _next(context);
+        }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning("Validation failed: {Errors}", ex.Errors);
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                status = StatusCodes.Status400BadRequest,
+                title = "Validation failed",
+                errors = ex.Errors,
+                instance = context.Request.Path.Value,
+            });
         }
         catch (NotFoundException ex)
         {
