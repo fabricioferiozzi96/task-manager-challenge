@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors, radius, spacing, typography } from '../../../../core/theme/tokens';
+import { colors, spacing, typography } from '../../../../../../core/theme/tokens';
 
 export const styles = StyleSheet.create({
   screen: {
@@ -28,5 +28,4 @@ export const styles = StyleSheet.create({
     ...typography.body,
     lineHeight: 22,
   },
-
 });

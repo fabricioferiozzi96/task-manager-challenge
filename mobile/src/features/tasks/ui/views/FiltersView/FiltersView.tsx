@@ -1,17 +1,16 @@
-import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import type { FiltersViewProps } from '../types/FiltersView.types';
-import { styles } from '../styles/FiltersView.styles';
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../domain/Task';
+import { styles } from './styles/FiltersView.styles';
+import type { FiltersViewProps } from './types/FiltersView.types';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../../domain/Task';
 
-export const FiltersView: React.FC<FiltersViewProps> = ({
+export const FiltersView = ({
   selectedStatusId,
   selectedPriorityId,
   onToggleStatus,
   onTogglePriority,
   onClear,
   onApply,
-}) => (
+}: FiltersViewProps) => (
   <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Estado</Text>
@@ -70,7 +69,7 @@ interface ChipOptionProps {
   onPress: () => void;
 }
 
-const ChipOption: React.FC<ChipOptionProps> = ({ label, active, onPress }) => (
+const ChipOption = ({ label, active, onPress }: ChipOptionProps) => (
   <Pressable
     onPress={onPress}
     style={({ pressed }) => [

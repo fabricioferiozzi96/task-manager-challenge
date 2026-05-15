@@ -1,11 +1,11 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import type { TaskCardProps } from '../types/TaskCard.types';
-import { styles } from '../styles/TaskCard.styles';
-import { StatusBadge } from './StatusBadge';
-import { PriorityBadge } from './PriorityBadge';
+import { styles } from './styles/TaskCard.styles';
+import type { TaskCardProps } from './types/TaskCard.types';
+import { StatusBadge } from '../StatusBadge';
+import { PriorityBadge } from '../PriorityBadge';
 
-const TaskCardComponent: React.FC<TaskCardProps> = ({ task, onPress }) => {
+const TaskCardComponent = ({ task, onPress }: TaskCardProps) => {
   return (
     <Pressable
       onPress={() => onPress(task.id)}

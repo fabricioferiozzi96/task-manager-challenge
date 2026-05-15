@@ -1,13 +1,13 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { TaskListViewProps } from '../types/TaskListView.types';
-import { styles } from '../styles/TaskListView.styles';
-import { StateMessage } from '../../../../shared/components/StateMessage';
-import { TaskCard } from './TaskCard';
-import type { Task } from '../../domain/Task';
+import { styles } from './styles/TaskListView.styles';
+import type { TaskListViewProps } from './types/TaskListView.types';
+import { StateMessage } from '../../../../../shared/components/StateMessage';
+import { TaskCard } from '../TaskCard';
+import type { Task } from '../../../domain/Task';
 
-export const TaskListView: React.FC<TaskListViewProps> = ({
+export const TaskListView = ({
   tasks,
   isLoading,
   isError,
@@ -18,7 +18,7 @@ export const TaskListView: React.FC<TaskListViewProps> = ({
   onClearFilters,
   onRetry,
   onRefresh,
-}) => {
+}: TaskListViewProps) => {
   const renderItem = useCallback(
     ({ item }: { item: Task }) => <TaskCard task={item} onPress={onTaskPress} />,
     [onTaskPress],

@@ -1,17 +1,16 @@
-import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import type { TaskDetailViewProps } from '../types/TaskDetailView.types';
-import { styles } from '../styles/TaskDetailView.styles';
-import { StateMessage } from '../../../../shared/components/StateMessage';
-import { StatusBadge } from './StatusBadge';
-import { PriorityBadge } from './PriorityBadge';
+import { styles } from './styles/TaskDetailView.styles';
+import type { TaskDetailViewProps } from './types/TaskDetailView.types';
+import { StateMessage } from '../../../../../shared/components/StateMessage';
+import { StatusBadge } from '../StatusBadge';
+import { PriorityBadge } from '../PriorityBadge';
 
-export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
+export const TaskDetailView = ({
   task,
   isLoading,
   isError,
   onRetry,
-}) => {
+}: TaskDetailViewProps) => {
   if (isLoading) return <StateMessage variant="loading" />;
   if (isError || !task) return <StateMessage variant="error" onRetry={onRetry} />;
 

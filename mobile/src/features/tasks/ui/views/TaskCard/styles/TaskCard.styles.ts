@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { colors, radius, spacing, typography } from '../../../../core/theme/tokens';
+import { colors, radius, spacing, typography } from '../../../../../../core/theme/tokens';
 
 export const styles = StyleSheet.create({
   card: {
@@ -34,5 +34,4 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-
 });

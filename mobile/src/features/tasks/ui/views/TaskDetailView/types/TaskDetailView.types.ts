@@ -1,4 +1,4 @@
-import type { Task } from '../../domain/Task';
+import type { Task } from '../../../../domain/Task';
 
 export interface TaskDetailViewProps {
   task: Task | undefined;
