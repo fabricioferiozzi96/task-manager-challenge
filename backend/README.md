@@ -1,6 +1,6 @@
 # Backend - Task Manager API
 
-API REST en .NET 8 con arquitectura layered clásica (Controller → Service → Repository) en un solo proyecto. Acceso a datos vía Dapper sobre PostgreSQL, llamando a funciones SQL como equivalente de stored procedures.
+API REST en .NET 8 con **Clean Architecture + CQRS** (lado Query). Capas separadas (Domain / Application / Infrastructure / API) en un solo proyecto, MediatR para despachar queries, FluentValidation para validar input y Dapper sobre PostgreSQL llamando a funciones SQL como equivalente de stored procedures.
 
 ## Estructura
 
@@ -8,40 +8,104 @@ API REST en .NET 8 con arquitectura layered clásica (Controller → Service →
 backend/
 ├── TaskManager.sln
 ├── src/TaskManager.Api/
-│   ├── Controllers/      Endpoints HTTP
-│   ├── Services/         Lógica de negocio (orquesta repo, mapea a DTO)
-│   ├── Repositories/     Acceso a datos vía Dapper
-│   ├── Models/           POCOs que mapean lo que devuelve la DB
-│   ├── Dtos/             Forma del JSON expuesto al cliente
-│   ├── Exceptions/       NotFoundException
-│   ├── Middleware/       Manejo global de errores
-│   └── Program.cs        DI, middleware, Serilog, Swagger, CORS
+│   ├── API/
+│   │   ├── Controller/         Endpoints HTTP (anémicos: solo mediator.Send)
+│   │   └── Middleware/         Traduce excepciones a status codes
+│   ├── Application/
+│   │   ├── Query/              GetTasksQuery, GetTaskByIdQuery (IRequest)
+│   │   ├── QueryHandlers/      Casos de uso — orquestan repo + service
+│   │   ├── Dtos/               TaskListItemDto (liviano), TaskDetailDto (completo)
+│   │   ├── Validators/         FluentValidation por query
+│   │   ├── Behaviors/          ValidationBehavior — corre validators antes del handler
+│   │   ├── Exceptions/         ValidationException
+│   │   └── Services/           ITaskService — contrato de mapeo / integraciones
+│   ├── Domain/
+│   │   ├── Entities/           TaskItem + VOs (TaskStatus, TaskPriority)
+│   │   ├── Repository/         ITaskRepository (contrato)
+│   │   └── Exceptions/         NotFoundException (excepción de dominio, sin HTTP)
+│   ├── Infrastructure/
+│   │   ├── Persistence/        TaskRow — POCO que hidrata Dapper
+│   │   ├── Repository/         TaskRepository (impl Dapper + Npgsql)
+│   │   └── Service/            TaskService (impl ITaskService)
+│   └── Program.cs              DI, MediatR, FluentValidation, middleware, Swagger
 └── tests/TaskManager.UnitTests/
-    └── Services/         Tests del TaskService con repositorio mockeado
+    ├── QueryHandlers/          Tests de los handlers con repo mockeado
+    └── Validators/             Tests de las reglas de FluentValidation
 ```
 
-## Por qué layered y no Clean Architecture
+## Por qué Clean Architecture + CQRS
 
-El reto pide 2 endpoints. Para ese alcance, partir el código en 4 proyectos (Domain / Application / Infrastructure / Api), agregar MediatR para 2 queries y modelar value objects para los enums es complejidad que no aporta valor real.
+Cada capa solo conoce a la que tiene debajo:
 
-Layered con Controller → Service → Repository ya separa lo importante:
+- **Domain**: el núcleo, no depende de nada. Define **qué** se necesita (`ITaskRepository`, entidades con invariantes).
+- **Application**: define los casos de uso (queries + handlers), valida input y mapea a DTOs. Depende solo de Domain.
+- **Infrastructure**: las implementaciones concretas (Dapper, Npgsql, integraciones externas). Depende de Domain — es quien provee lo que el dominio pide.
+- **API**: transporte HTTP. Es el *composition root*: la única capa que conoce a todas las demás, porque acá se "atan los cables" entre interfaces e implementaciones.
 
-- **Controller**: HTTP (binding, status codes).
-- **Service**: lógica de negocio y mapeo a DTO.
-- **Repository**: acceso a datos.
+CQRS está aplicado **solo en el lado Query** — la API es read-only. La estructura queda lista para sumar `Command/` y `CommandHandlers/` el día que entre un `POST /api/tasks`. La separación importa: un cambio en la lectura no tiene por qué tocar la escritura ni viceversa.
 
-Si el dominio creciera (varios agregados, comandos con efectos secundarios, reglas de negocio complejas), Clean Arch es lo optimo para proyectos grandes.
+Como siguiente paso para un proyecto más grande, lo "nivel senior" es partir esto en 4 `.csproj` (`TaskManager.Domain`, `TaskManager.Application`, `TaskManager.Infrastructure`, `TaskManager.Api`): hoy las capas son una convención de carpetas; con csproj separados el compilador **fuerza** que Domain no pueda importar Infrastructure.
 
 ## Stack
 
+- **MediatR 12**: despacha cada `IRequest` al `IRequestHandler` correspondiente. El controller no conoce handlers ni repositorios — solo manda la query al mediator. Pipeline behaviors permiten transversales (validación, logging, caching) sin tocar el handler.
+- **FluentValidation 11**: reglas declarativas en `Application/Validators`. Un validator por query, se ejecutan automáticamente vía `ValidationBehavior` antes de que el handler vea el request.
 - **Dapper 2 + Npgsql 8**: capa fina sobre ADO.NET, ideal para llamar funciones / SPs sin la fricción de un ORM.
 - **Serilog 8**: logging estructurado y request logging (`UseSerilogRequestLogging`).
 - **Swashbuckle**: Swagger UI con XML comments en Development.
-- **xUnit + NSubstitute + FluentAssertions**: tests del Service con repo mockeado.
+- **xUnit + NSubstitute + FluentAssertions**: tests de handlers con repo mockeado y tests de validators con `TestValidate`.
 
-Validación: la dejé inline en el controller. Son 2 query params numéricos en rango 1..4 y no me pareció justificado meter FluentValidation.
+## Validación
 
-Errores: middleware clásico (`app.UseMiddleware<ExceptionMiddleware>()`) que mapea excepciones a JSON. Cumple el mismo rol que un `app.use((err, req, res, next) => ...)` en Express. Preferí esto antes que `IExceptionHandler` con ProblemDetails porque me resultó más directo de leer y explicar.
+Vive en `Application/Validators` — es regla del caso de uso, no de HTTP. Cada query tiene su `AbstractValidator<TQuery>`:
+
+```csharp
+RuleFor(x => x.StatusId)
+    .InclusiveBetween(1, 4)
+    .When(x => x.StatusId.HasValue)
+    .WithMessage("Invalid status. Must be between 1 and 4.");
+```
+
+El `ValidationBehavior` de MediatR los corre antes del handler. Si alguno falla, lanza `ValidationException` con un `Dictionary<string, string[]>` y el handler nunca llega a ejecutarse. El middleware la traduce a HTTP 400 con el detalle por campo.
+
+Esto reemplaza al `if (status < 1 || status > 4) BadRequest(...)` que estaba inline en el controller. Beneficios: una sola fuente de verdad por regla, reglas componibles, mensajes consistentes y centralizados.
+
+## Modelo de dominio
+
+`TaskItem` es una entidad **rica**, no un POCO con setters públicos:
+
+- Constructor con todos los invariantes obligatorios (título no vacío, id positivo, status y priority no nulos).
+- Setters privados — nadie de afuera puede mutar el estado a mano.
+- `Status` y `Priority` son value objects (`TaskStatus`, `TaskPriority`) que encapsulan `id + code + label`. En vez de un enum hardcodeado, la fuente de verdad es la tabla `task_status` / `task_priority`; soporta metadata futura (color, orden) sin tocar la entidad.
+
+Dapper no hidrata `TaskItem` directamente. Hidrata `TaskRow` (POCO con setters públicos en Infrastructure/Persistence) y el repositorio mapea `TaskRow → TaskItem` antes de salir. Eso mantiene los detalles de la DB (snake_case, `short` vs `int`) fuera del dominio.
+
+## DTOs: listado vs detalle
+
+Dos DTOs separados, dos SQLs diferentes:
+
+- **`TaskListItemDto`** (4 campos: `id`, `title`, `status`, `priority`): lo justo para mostrar una fila. No incluye descripción ni códigos — solo los labels para los badges. El SQL del repo proyecta solo las columnas necesarias.
+- **`TaskDetailDto`** (7 campos): incluye `description` y los codes + labels completos. El detalle sí necesita todo.
+
+Tener DTOs distintos deja el contrato explícito en Swagger/OpenAPI y permite evolucionarlos por separado (ej. detalle suma `createdAt`, listado suma `thumbnail`) sin filtrar cambios de un caso de uso al otro.
+
+## Errores
+
+Único lugar que traduce excepciones a HTTP: el `ExceptionMiddleware` en `API/Middleware`. El resto del código lanza excepciones expresivas sin saber qué status code generan.
+
+Mapeo:
+- **`ValidationException`** → 400 con el dict de errores por campo.
+- **`NotFoundException`** → 404 con detalle.
+- cualquier otra → 500 con mensaje genérico (el detalle solo al log).
+
+```json
+{
+  "status": 404,
+  "title": "Not found",
+  "detail": "Task with id 99999 was not found.",
+  "instance": "/api/tasks/99999"
+}
+```
 
 ## Requisitos
 
@@ -78,8 +142,8 @@ dotnet run
 | Método | Ruta | Descripción |
 | --- | --- | --- |
 | GET | `/health` | Healthcheck simple. |
-| GET | `/api/tasks` | Lista tareas. Filtros opcionales: `?status=&priority=`. |
-| GET | `/api/tasks/{id}` | Detalle. 404 si no existe. |
+| GET | `/api/tasks` | Lista tareas (DTO liviano). Filtros opcionales: `?status=&priority=`. |
+| GET | `/api/tasks/{id}` | Detalle completo. 404 si no existe. |
 | GET | `/swagger` | Swagger UI (solo en Development). |
 
 ### IDs de catálogos
@@ -95,28 +159,24 @@ curl "http://localhost:5186/api/tasks?status=2"
 curl "http://localhost:5186/api/tasks?status=1&priority=4"
 curl http://localhost:5186/api/tasks/3
 curl http://localhost:5186/api/tasks/99999    # 404
+curl "http://localhost:5186/api/tasks?status=9" # 400 con detalle por campo
 ```
 
-## Manejo de errores
+## Flujo de un request
 
-Todas las excepciones pasan por `ExceptionMiddleware` y se traducen a JSON consistente:
+`GET /api/tasks?status=2` recorre:
 
-```json
-{
-  "status": 404,
-  "title": "Not found",
-  "detail": "Task with id 99999 was not found.",
-  "instance": "/api/tasks/99999"
-}
-```
+1. **`TasksController`** (API) — bind de query params, construye `GetTasksQuery(2, null)` y se lo manda a `IMediator.Send`.
+2. **`ValidationBehavior`** (Application/Behaviors) — corre `GetTasksQueryValidator`. Si falla, lanza `ValidationException` y nunca se llega al handler.
+3. **`GetTasksQueryHandler`** (Application/QueryHandlers) — pide los datos a `ITaskRepository`, mapea entidades a DTOs con `ITaskService`.
+4. **`TaskRepository`** (Infrastructure) — ejecuta el SQL contra Postgres con Dapper, mapea `TaskRow → TaskItem`.
+5. El handler devuelve `IReadOnlyList<TaskListItemDto>` al mediator, el controller responde `200 OK`.
 
-Casos:
-
-- **400** cuando la validación inline en el controller falla (`status` o `priority` fuera de 1..4).
-- **404** cuando el service lanza `NotFoundException`.
-- **500** para cualquier otra excepción (se loguea con stack trace).
+Si algo falla, el `ExceptionMiddleware` traduce la excepción al status correspondiente.
 
 ## Notas
 
 - Mapeo snake_case → PascalCase configurado con `Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true`. Hace que columnas como `status_id` mapeen a `StatusId` sin alias explícitos.
-- Repo y service registrados como Scoped (instancia por request). Es la convención en .NET y deja la puerta abierta a inyectar dependencias con scope más adelante sin riesgo de *captive dependency*. La conexión real la maneja Npgsql con su pool, no la vida del objeto.
+- MediatR y FluentValidation descubren handlers y validators por reflection sobre el assembly al arranque (`AddMediatR` y `AddValidatorsFromAssembly`). No hay que registrarlos uno por uno.
+- Repo y service registrados como Scoped (instancia por request). Convención en .NET; deja la puerta abierta a inyectar dependencias con scope sin riesgo de *captive dependency*. La conexión real la maneja Npgsql con su pool, no la vida del objeto.
+- `TaskStatus` (VO de dominio) colisiona en nombre con `System.Threading.Tasks.TaskStatus`. Se resuelve con alias (`using DomainTaskStatus = TaskManager.Api.Domain.Entities.TaskStatus;`) en los archivos donde hace falta.
