@@ -2,15 +2,23 @@
 
 ## Backend
 
-Elegí **layered en un solo proyecto** en lugar de Clean Architecture + CQRS. El reto pide 2 endpoints: partir el código en 4 proyectos y meter MediatR para dos queries era complejidad innecesaria.
+Estructuré el backend con **Clean Architecture + CQRS (lado Query)** en cuatro capas dentro de un mismo proyecto: `Domain`, `Application`, `Infrastructure`, `API`. Las dependencias van siempre hacia adentro: Domain no conoce a nadie, Application depende de Domain, Infrastructure implementa lo que Domain pide, y API es el composition root que ata todo. Como siguiente paso para un proyecto más grande, lo partiría en 4 `.csproj` para que el compilador **fuerce** la dirección de las dependencias en vez de dejarla como convención de carpetas.
+
+CQRS está aplicado **solo en el lado Query** porque la API es read-only. Cada caso de uso es un `IRequest` con su `IRequestHandler`, despachado por **MediatR**. El día que entren escrituras se suma `Command/` + `CommandHandlers/` con el mismo pipeline; la estructura ya está preparada.
+
+Para validación uso **FluentValidation** con un `AbstractValidator<TQuery>` por query. Las reglas corren automáticamente vía un `ValidationBehavior` (pipeline behavior de MediatR) antes del handler. Esto saca la lógica de rangos del controller — el controller queda anémico, solo despacha al mediator. Si la validación falla, se lanza una `ValidationException` que el middleware traduce a HTTP 400 con el detalle por campo.
+
+La entidad `TaskItem` es **rica**: constructor con invariantes (título no vacío, id positivo), setters privados y value objects (`TaskStatus`, `TaskPriority`) para encapsular `id + code + label`. La fuente de verdad de status y priority son las tablas de catálogo, no un enum hardcodeado. Dapper no hidrata la entidad directamente: hidrata un `TaskRow` en Infrastructure y el repositorio mapea a `TaskItem` antes de salir, manteniendo los detalles de la DB (snake_case, `short`) fuera del dominio.
+
+Tengo **DTOs separados para listado y detalle**. `TaskListItemDto` lleva 4 campos (`id`, `title`, `status`, `priority`) — lo justo para pintar una fila. `TaskDetailDto` lleva 7 campos e incluye `description` y los codes. Cada caso de uso tiene su SQL: el del listado proyecta solo las columnas necesarias, el del detalle hace `SELECT *`. Esto baja bytes en cable y deja el contrato explícito en Swagger.
 
 Para acceso a datos preferí **Dapper sobre EF Core** porque el reto pide stored procedures. Con Dapper ejecuto el SQL o llamo a la función, recibo POCOs mapeados, y listo. EF Core trae cosas (change-tracking, unit-of-work, migrations) que no se usan cuando el flujo es ejecutar un SP, mapear y devolver.
 
 Las "stored procedures" son en realidad **funciones** (`CREATE FUNCTION ... RETURNS TABLE`). En Postgres los `CREATE PROCEDURE` no pueden retornar resultados tabulares, así que para el caso es lo correcto. Mantuve el prefijo `sp_` por convención del enunciado.
 
-Para errores usé un **`ExceptionMiddleware` clásico** en lugar de `IExceptionHandler` con ProblemDetails. Lo elegí porque me resulta más fácil de leer y explicar: es básicamente lo mismo que un `app.use((err, req, res, next) => ...)` de Express.
+Para errores usé un **`ExceptionMiddleware` clásico** en lugar de `IExceptionHandler` con ProblemDetails. Lo elegí porque me resulta más fácil de leer y explicar: es básicamente lo mismo que un `app.use((err, req, res, next) => ...)` de Express. Mapea `ValidationException` a 400, `NotFoundException` a 404, y cualquier otra a 500 con mensaje genérico.
 
-Registré el **repositorio como Scoped** (instancia por request).Scoped además me deja inyectar otras dependencias con scope sin riesgo de *captive dependency*, cosa que con Singleton sí sería un problema.
+Registré el **repositorio y el service como Scoped** (instancia por request). Scoped además me deja inyectar otras dependencias con scope sin riesgo de *captive dependency*, cosa que con Singleton sí sería un problema.
 
 Las **credenciales vienen de un `.env`**. Uso `DotNetEnv.Env.TraversePath().Load()` al arranque para cargar el archivo en variables de entorno. .NET las lee como `IConfiguration` con la convención `Section__Key` (por ejemplo `ConnectionStrings__Default`). En producción no se usa el archivo: las variables se setean directamente en el container.
 
