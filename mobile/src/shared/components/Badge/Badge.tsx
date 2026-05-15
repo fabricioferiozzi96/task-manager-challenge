@@ -1,12 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, typography } from '../../core/theme/tokens';
-
-interface BadgeProps {
-  label: string;
-  color: string;
-  variant?: 'solid' | 'soft';
-}
+import { Text, View } from 'react-native';
+import { colors } from '../../../core/theme/tokens';
+import { styles } from './styles/Badge.styles';
+import type { BadgeProps } from './types/Badge.types';
 
 export const Badge: React.FC<BadgeProps> = ({ label, color, variant = 'soft' }) => {
   const isSolid = variant === 'solid';
@@ -32,16 +28,3 @@ export const Badge: React.FC<BadgeProps> = ({ label, color, variant = 'soft' }) 
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignSelf: 'flex-start',
-  },
-  text: {
-    ...typography.badge,
-  },
-});
