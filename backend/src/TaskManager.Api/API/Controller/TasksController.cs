@@ -4,9 +4,6 @@ using TaskManager.Api.Application.Dtos;
 using TaskManager.Api.Application.Query;
 
 namespace TaskManager.Api.API.Controller;
-
-/// <summary>
-/// Controller "anémico" — solo se ocupa de transporte HTTP:
 /// 1) Toma los parámetros de la request.
 /// 2) Construye el query y lo manda al mediator.
 /// 3) Devuelve el resultado con el status code correcto.
@@ -14,10 +11,6 @@ namespace TaskManager.Api.API.Controller;
 /// NO valida rangos, NO trae el repositorio, NO mapea DTOs. Eso es lógica
 /// del caso de uso y vive en Application.
 ///
-/// Esto resuelve la observación principal del feedback:
-/// "metió lógica de rangos y negocio directo en los controladores".
-/// Ahora la única responsabilidad del controller es traducir HTTP ↔ caso de uso.
-/// </summary>
 [ApiController]
 [Route("api/tasks")]
 [Produces("application/json")]

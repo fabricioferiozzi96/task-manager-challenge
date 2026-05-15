@@ -6,14 +6,9 @@ using TaskManager.Api.Domain.Exceptions;
 using TaskManager.Api.Domain.Repository;
 
 namespace TaskManager.Api.Application.QueryHandlers;
-
-/// <summary>
 /// Caso de uso: "obtener una tarea por id".
-///
 /// Si no existe, lanza <see cref="NotFoundException"/> — excepción de dominio.
-/// La traducción a HTTP 404 la hace el middleware en la capa API; el handler
-/// no debe saber nada de status codes.
-/// </summary>
+/// La traducción a HTTP 404 la hace el middleware en la capa API; 
 public class GetTaskByIdQueryHandler : IRequestHandler<GetTaskByIdQuery, TaskDetailDto>
 {
     private readonly ITaskRepository _repository;

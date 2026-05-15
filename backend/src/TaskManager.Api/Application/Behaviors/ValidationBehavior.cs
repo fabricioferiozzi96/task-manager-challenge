@@ -3,11 +3,6 @@ using MediatR;
 using ValidationException = TaskManager.Api.Application.Exceptions.ValidationException;
 
 namespace TaskManager.Api.Application.Behaviors;
-
-/// <summary>
-/// Pipeline behavior de MediatR — el equivalente a un middleware, pero para
-/// requests del mediator en vez de HTTP.
-///
 /// Antes de que cualquier handler corra, este behavior:
 /// 1) Busca todos los IValidator&lt;TRequest&gt; registrados en el DI.
 /// 2) Los ejecuta contra el request.
@@ -17,7 +12,6 @@ namespace TaskManager.Api.Application.Behaviors;
 /// Resultado: los handlers solo se ocupan del caso de uso, no de defenderse
 /// del input. La validación es transversal a todas las queries y commands
 /// — un solo lugar para mantenerla.
-/// </summary>
 public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
