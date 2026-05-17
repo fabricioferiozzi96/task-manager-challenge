@@ -1,38 +1,64 @@
 # Arquitectura del backend
 
-Layered clásica en un solo proyecto. Tres capas, una sola dirección de dependencia.
+Clean Architecture en un solo proyecto. Cuatro capas, dependencias siempre hacia adentro.
 
 ```mermaid
 flowchart TD
     HTTP["HTTP Request"] --> CTRL["TasksController"]
-    CTRL --> SVC["TaskService"]
-    SVC --> REPO["TaskRepository"]
+    CTRL -->|IMediator.Send| MED["MediatR"]
+    MED -->|pipeline| VB["ValidationBehavior"]
+    VB -->|request válido| QH["QueryHandler"]
+    QH --> REPO["ITaskRepository"]
+    QH --> SVC["ITaskService"]
     REPO -->|Dapper| DB[("PostgreSQL")]
+    SVC -->|mapeo DTO| QH
 
-    SVC -.->|throw NotFoundException| MID["ExceptionMiddleware"]
-    MID -.->|JSON 404/500| HTTP
+    VB -.->|ValidationException| MID["ExceptionMiddleware"]
+    QH -.->|NotFoundException| MID
+    MID -.->|JSON 400/404/500| HTTP
 
     style CTRL fill:#fce7f3,stroke:#db2777
-    style SVC fill:#dbeafe,stroke:#2563eb
+    style MED fill:#ede9fe,stroke:#7c3aed
+    style VB fill:#ede9fe,stroke:#7c3aed
+    style QH fill:#ede9fe,stroke:#7c3aed
     style REPO fill:#dcfce7,stroke:#16a34a
+    style SVC fill:#dcfce7,stroke:#16a34a
     style MID fill:#fef3c7,stroke:#d97706
 ```
 
-## Responsabilidad por capa
+## Capas y responsabilidades
 
-- **Controller**: recibe la request, valida query params básicos y delega.
-- **Service**: orquesta el repo y mapea `TaskItem` → `TaskDto`. Lanza `NotFoundException` cuando un id no existe.
-- **Repository**: único lugar que conoce SQL. Usa Dapper para invocar `sp_get_tasks` y `sp_get_task_by_id`.
-- **Middleware**: traduce excepciones a JSON consistente (status, title, detail, instance).
-
-## Composición (`Program.cs`)
-
-```csharp
-builder.Services.AddScoped<ITaskRepository, TaskRepository>();
-builder.Services.AddScoped<ITaskService, TaskService>();
+```
+TaskManager.Api/
+├── API/
+│   ├── Controller/     ← recibe HTTP, despacha al mediator, devuelve IActionResult
+│   └── Middleware/     ← ExceptionMiddleware: traduce excepciones a JSON
+├── Application/
+│   ├── Behaviors/      ← ValidationBehavior: corre FluentValidation antes de cada handler
+│   ├── Commands/       ← definiciones de commands (escritura)
+│   ├── CommandHandlers/← handlers de commands
+│   ├── Query/          ← definiciones de queries (lectura)
+│   ├── QueryHandlers/  ← GetTasksQueryHandler, GetTaskByIdQueryHandler
+│   ├── Validators/     ← GetTasksQueryValidator, GetTaskByIdQueryValidator
+│   ├── Dtos/           ← TaskListItemDto (listado), TaskDetailDto (detalle)
+│   ├── Services/       ← ITaskService (interfaz de mapeo)
+│   └── Exceptions/     ← ValidationException
+├── Domain/
+│   ├── Entities/       ← TaskItem (rich model), TaskStatus, TaskPriority (value objects)
+│   ├── Repository/     ← ITaskRepository (interfaz)
+│   └── Exceptions/     ← NotFoundException
+└── Infrastructure/
+    ├── Repository/     ← TaskRepository: Dapper + sp_get_tasks / sp_get_task_by_id
+    ├── Service/        ← TaskService: mapea TaskItem → DTO
+    └── Persistence/    ← TaskRow: POCO plano para Dapper
 ```
 
-Repo y service Scoped (instancia por request). Es la convención en .NET y evita problemas si más adelante el repo recibe una dependencia con scope.
+- **Controller**: construye el `IRequest` y llama a `_mediator.Send`. Sin validación, sin repositorio, sin mapeo.
+- **ValidationBehavior**: intercepta cada request antes del handler y corre los `AbstractValidator` correspondientes. Si hay error lanza `ValidationException` → HTTP 400.
+- **QueryHandler**: orquesta el caso de uso. Llama al repositorio para traer entidades de dominio y al service para mapearlas al DTO correcto.
+- **Repository**: único lugar que conoce SQL/Dapper. Llama a los stored procedures e hidrata `TaskRow`, luego mapea a `TaskItem` antes de retornar.
+- **TaskService**: mapea `TaskItem` → `TaskListItemDto` o `TaskDetailDto`. Vive en Infrastructure porque conoce los dos lados.
+- **ExceptionMiddleware**: único punto de traducción de excepciones a JSON con formato consistente (`status`, `title`, `detail`, `instance`).
 
 ## Configuración
 

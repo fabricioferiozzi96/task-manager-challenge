@@ -49,8 +49,3 @@ Usé **`BIGINT GENERATED ALWAYS AS IDENTITY`** para el ID de `tasks`.
 Las fechas son **`TIMESTAMPTZ`** siempre. Postgres convierte a UTC al guardar y permite expresar zonas horarias en queries.
 
 Agregué **índices** sobre `status_id`, `priority_id` y `created_at DESC`. Cubre los tres patrones de acceso esperados: filtros + orden por defecto.
-
-## Lo que dejé afuera
-- **Banner de modo offline**: requiere `@react-native-community/netinfo`. Sería el primer agregado si tuviera más tiempo.
-- **DB local para offline-first**: solo se justifica si la app tiene que funcionar bien sin internet como funcionalidad principal (delivery, médicas, etc.). Para listado/detalle, AsyncStorage + RTK Query alcanza.
-- **Paginación**: con 18 tareas en el seed no hace falta. Cuando crezca, sumo `LIMIT/OFFSET` a `sp_get_tasks` y `merge` en RTK Query para listas infinitas.
