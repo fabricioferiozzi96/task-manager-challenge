@@ -1,3 +1,4 @@
+using System.Data;
 using Dapper;
 using Npgsql;
 using TaskManager.Api.Domain.Entities;
@@ -9,15 +10,9 @@ using DomainTaskPriority = TaskManager.Api.Domain.Entities.TaskPriority;
 namespace TaskManager.Api.Infrastructure.Repository;
 
 /// <summary>
-/// Implementación del repositorio con Dapper + Npgsql sobre las funciones SQL
-/// (sp_get_tasks, sp_get_task_by_id). Vive en Infrastructure porque conoce
-/// detalles concretos: la cadena de conexión, el dialecto SQL, Dapper.
-///
-/// Dos métodos, dos SELECTs distintos — esto es lo que el feedback de la
-/// entrevista pedía:
-/// - GetAllAsync proyecta SOLO las columnas que necesita el listado (sin description).
-///   Ahorra bytes desde la DB hasta la respuesta HTTP.
-/// - GetByIdAsync hace SELECT * porque el detalle sí necesita todo.
+/// Implementación del repositorio con Dapper + Npgsql invocando los stored procedures
+/// sp_get_tasks y sp_get_task_by_id via CommandType.StoredProcedure.
+/// Vive en Infrastructure porque conoce detalles concretos: cadena de conexión, dialecto SQL, Dapper.
 ///
 /// Mapeo: las filas (TaskRow) se traducen a entidades de dominio (TaskItem)
 /// antes de salir del repositorio. El resto del sistema solo ve TaskItem.
@@ -34,16 +29,11 @@ public class TaskRepository : ITaskRepository
 
     public async Task<IReadOnlyList<TaskItem>> GetAllAsync(int? statusId, int? priorityId, CancellationToken ct)
     {
-        const string sql = @"
-            SELECT id, title,
-                   status_id, status_code, status_label,
-                   priority_id, priority_code, priority_label
-            FROM sp_get_tasks(@p_status_id, @p_priority_id)";
-
         await using var conn = new NpgsqlConnection(_connectionString);
         var rows = await conn.QueryAsync<TaskRow>(new CommandDefinition(
-            sql,
+            "sp_get_tasks",
             new { p_status_id = (short?)statusId, p_priority_id = (short?)priorityId },
+            commandType: CommandType.StoredProcedure,
             cancellationToken: ct));
 
         return rows.Select(ToDomain).ToList();
@@ -53,8 +43,9 @@ public class TaskRepository : ITaskRepository
     {
         await using var conn = new NpgsqlConnection(_connectionString);
         var row = await conn.QuerySingleOrDefaultAsync<TaskRow>(new CommandDefinition(
-            "SELECT * FROM sp_get_task_by_id(@p_id)",
+            "sp_get_task_by_id",
             new { p_id = id },
+            commandType: CommandType.StoredProcedure,
             cancellationToken: ct));
 
         return row is null ? null : ToDomain(row);

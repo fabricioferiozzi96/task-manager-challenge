@@ -4,13 +4,6 @@ using TaskManager.Api.Application.Dtos;
 using TaskManager.Api.Application.Query;
 
 namespace TaskManager.Api.API.Controller;
-/// 1) Toma los parámetros de la request.
-/// 2) Construye el query y lo manda al mediator.
-/// 3) Devuelve el resultado con el status code correcto.
-///
-/// NO valida rangos, NO trae el repositorio, NO mapea DTOs. Eso es lógica
-/// del caso de uso y vive en Application.
-///
 [ApiController]
 [Route("api/tasks")]
 [Produces("application/json")]

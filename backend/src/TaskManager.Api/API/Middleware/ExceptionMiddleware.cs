@@ -2,11 +2,6 @@ using TaskManager.Api.Domain.Exceptions;
 using ValidationException = TaskManager.Api.Application.Exceptions.ValidationException;
 
 namespace TaskManager.Api.API.Middleware;
-/// Único lugar del sistema que traduce excepciones de dominio/app a HTTP.
-/// Mapeo:
-/// - ValidationException → 400 con el dict de errores por campo.
-/// - NotFoundException   → 404 con detalle.
-/// - cualquier otra       → 500 con mensaje genérico (el detalle solo al log).
 public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;

@@ -1,9 +1,4 @@
 namespace TaskManager.Api.Domain.Entities;
-
-/// <summary>
-/// Value Object para la prioridad. Mismo razonamiento que <see cref="TaskStatus"/>:
-/// los valores los provee la tabla task_priority, no un enum hardcodeado.
-/// </summary>
 public sealed class TaskPriority
 {
     public short Id { get; }
