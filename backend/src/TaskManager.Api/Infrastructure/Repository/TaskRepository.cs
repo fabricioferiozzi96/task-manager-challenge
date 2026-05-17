@@ -8,15 +8,6 @@ using DomainTaskStatus = TaskManager.Api.Domain.Entities.TaskStatus;
 using DomainTaskPriority = TaskManager.Api.Domain.Entities.TaskPriority;
 
 namespace TaskManager.Api.Infrastructure.Repository;
-
-/// <summary>
-/// Implementación del repositorio con Dapper + Npgsql invocando los stored procedures
-/// sp_get_tasks y sp_get_task_by_id via CommandType.StoredProcedure.
-/// Vive en Infrastructure porque conoce detalles concretos: cadena de conexión, dialecto SQL, Dapper.
-///
-/// Mapeo: las filas (TaskRow) se traducen a entidades de dominio (TaskItem)
-/// antes de salir del repositorio. El resto del sistema solo ve TaskItem.
-/// </summary>
 public class TaskRepository : ITaskRepository
 {
     private readonly string _connectionString;
